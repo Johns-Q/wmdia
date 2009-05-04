@@ -29,7 +29,7 @@ CFLAGS= $(OPTIM) -W -Wall -g -pipe \
 LIBS=	`pkg-config --libs xcb-icccm xcb-shape xcb-image xcb`
 
 OBJS=	wmdia.o
-FILES=	Makefile README changelog agpl-3.0.txt wmdia.xpm
+FILES=	Makefile README Changelog AGPL-3.0.txt wmdia.xpm
 
 wmdia:	$(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
