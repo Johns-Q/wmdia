@@ -1,0 +1,55 @@
+
+@file README		dia dockapp.
+
+Copyright (c) 2009 by Lutz Sammer.  All Rights Reserved.
+
+Contributor(s):
+
+License: AGPLv3
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+$Id: $
+
+"dia" is a german word for "Reversal film".
+
+This is a small dockapp, which does nearly nothing. 
+It just creates an empty window with a 62x62 background pixmap.
+
+When you click on the window, the command in the property "COMMAND" is executed.
+When you move the mouse in the window the text in the property "TOOLTIP" is
+shown as tooltip.
+
+To compile you must have libxcb (xcb-dev) installed.
+
+xprop can be used to modify the wmdia properties.
+xwininfo can be used to find the window id.
+
+Just make make and play.
+
+Requires:
+	x11-libs/libxcb
+		X C-language Bindings library
+		http://xcb.freedesktop.org/
+
+
+Example scripts:
+
+	- diashow.sh
+		Show pictures in wmdia.
+	- playvideo.sh
+		Play a video in wmdia.
+	- set-command.sh
+		How to change the command executed by wmdia.
+	- set-tooltop.sh
+		How to change the tooltop shown by wmdia.
+
+Lutz Sammer johns98@gmx.net
