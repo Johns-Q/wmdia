@@ -10,7 +10,7 @@ name="wmdia"
 ## picture viewer
 viewer="/usr/bin/feh"
 ## or set background
-viewer="/usr/bin/fbsetbg -a"
+#viewer="/usr/bin/fbsetbg -a"
 
 ##
 ##	Set the tooltip of wmdia
@@ -76,9 +76,13 @@ recursive() {
     find "$1" -xdev -type f -readable \( `images` \) -print 2>/dev/null | showinput
 }
 
+#	Show only one picture
+#showdia wmdia.xpm
+#	Show all pictures in background directory
+#showdir ~/.fluxbox/backgrounds
 #	Show all pictures found on root hard disk.
 #recursive /
-#	Show all pictures in background directory
-#showdir	~/.fluxbox/backgrounds
 
-showdia wmdia.xpm
+#	Loop for ever 
+viewer="/usr/bin/fbsetbg -a"
+while true; do showdir ~/.fluxbox/backgrounds; done;
