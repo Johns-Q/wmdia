@@ -1,4 +1,12 @@
 User johns
+Mon Jun 22 13:11:17 CEST 2009
+
+    Added commandline argument for window name, to support multiple wmdias.
+    Doxygen cleanups, Doxygen documentation generated.
+    Fixed coredump, if connection to X isn't possible.
+    Better handling, if none GIT version is build.
+
+User johns
 Mon May  4 14:11:54 CEST 2009
 
     Initial version.

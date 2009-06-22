@@ -1,5 +1,5 @@
 ///
-///	@name wmdia.c	-	DIA Dockapp
+///	@file wmdia.c	@brief	DIA Dockapp
 ///
 ///	Copyright (c) 2009 by Lutz Sammer.  All Rights Reserved.
 ///
@@ -20,6 +20,40 @@
 ///	GNU Affero General Public License for more details.
 ///
 ///	$Id$
+////////////////////////////////////////////////////////////////////////////
+
+/**
+**	@mainpage
+**
+**	"dia" is a german word for "Reversal film".
+**
+**	@n @n
+**	This is a small dockapp, which does nearly nothing. 
+**	It just creates an empty window with a 62x62 background pixmap.
+**
+**	@n
+**	When you click on the window, the command in the property "COMMAND" is
+**	executed.  When you move the mouse in the window the text in the
+**	property "TOOLTIP" is shown as tooltip.
+**
+**	@n
+**	The main goal was to have a slideshow in a dockapp window, but it can
+**	also be used to show films, webcam in the dockapp or just a simple
+**	command button.
+**
+**	@n
+**	With xprop can you change the command or tooltip:
+**
+**	xprop -name wmdia -format COMMAND 8s -set COMMAND "command" @n
+**	xprop -name wmdia -format TOOLTIP 8s -set TOOLTIP "tooltip" @n
+**
+**	@n
+**	With display can you change the background
+**
+**	display -resize 62x62 -bordercolor darkgray -border 31
+**	    -gravity center -crop 62x62+0+0 -window wmdia picture.jpg
+*/
+
 ////////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
@@ -47,33 +81,45 @@
 
 ////////////////////////////////////////////////////////////////////////////
 
-static xcb_connection_t *Connection;		///< connection to X11 server
-static xcb_screen_t *Screen;			///< our screen
-static xcb_window_t Window;			///< our window
-static xcb_gcontext_t ForegroundGC;		///< foreground graphic context
+static xcb_connection_t *Connection;	///< connection to X11 server
+static xcb_screen_t *Screen;		///< our screen
+static xcb_window_t Window;		///< our window
+static xcb_gcontext_t ForegroundGC;	///< foreground graphic context
 static xcb_gcontext_t NormalGC;		///< normal graphic context
-static xcb_pixmap_t Pixmap;			///< our background pixmap
-static xcb_pixmap_t Image;			///< drawing data
+static xcb_pixmap_t Pixmap;		///< our background pixmap
+static xcb_pixmap_t Image;		///< drawing data
 
-static xcb_atom_t CommandAtom;			///< "COMMAND" property
-static xcb_atom_t TooltipAtom;			///< "TOOLTIP" property
+static xcb_atom_t CommandAtom;		///< "COMMAND" property
+static xcb_atom_t TooltipAtom;		///< "TOOLTIP" property
 
-static int Timeout = -1;			///< timeout in ms
-static int WindowMode;				///< start in window mode
+static int Timeout = -1;		///< timeout in ms
+static int WindowMode;			///< start in window mode
+static const char *Name;		///< window/application name
 
-/**
+/*
 **	Icon window is used in dockapps like wmDockApp (wmgeneral.c)
 **	But it works without it.
 */
 //static xcb_window_t IconWindow;		///< our icon window
 
-static void HandleTimeout(void);	///< called from event loop
-static void ButtonPress(void);		///< called from event loop
-static void WindowEnter(void);		///< called from event loop
-static void WindowLeave(void);		///< called from event loop
-static void PropertyChanged(void);	///< called from event loop
+//{@
+///	Called from event loop
+static void HandleTimeout(void);
+static void ButtonPress(void);
+static void WindowEnter(void);
+static void WindowLeave(void);
+static void PropertyChanged(void);
+
+//@}
 
 static void DelTooltip(void);		///< forward define for Exit
+
+//@{
+///	Font for the tooltip
+#define FONT "-misc-fixed-medium-r-normal--20-*-75-75-c-*-iso8859-*"
+#define aFONT "7x13"
+#define bFONT "-*-bitstream vera sans-*-*-*-*-17-*-*-*-*-*-*-*"
+//@}
 
 ////////////////////////////////////////////////////////////////////////////
 //	XPM Stuff
@@ -87,7 +133,7 @@ static void DelTooltip(void);		///< forward define for Exit
 **	@param depth		image depth
 **	@param transparent	pixel for transparent color
 **	@param data		XPM graphic data
-**	@param[OUT] mask	bitmap mask for transparent
+**	@param[out] mask	bitmap mask for transparent
 **
 **	@returns image create from the XPM data.
 **
@@ -279,7 +325,7 @@ static xcb_image_t *XcbXpm2Image(xcb_connection_t * connection,
 **	Create pixmap.
 **
 **	@param data		XPM data
-**	@param[OUT] mask	Pixmap for data
+**	@param[out] mask	pixmap for data
 **
 **	@returns pixmap created from data.
 */
@@ -400,7 +446,10 @@ static void Loop(void)
 }
 
 /**
-**	Init
+**	Init the application.
+**
+**	@param argc	number of arguments
+**	@param argv	arguments vector
 */
 static int Init(int argc, char *const argv[])
 {
@@ -420,6 +469,7 @@ static int Init(int argc, char *const argv[])
     int i;
     int n;
     char *s;
+    char *buf;
 
     display_name = getenv("DISPLAY");
 
@@ -430,7 +480,6 @@ static int Init(int argc, char *const argv[])
 	fprintf(stderr, "Can't connect to X11 server on %s\n", display_name);
 	return -1;
     }
-
     //	Get the first screen
     setup = xcb_get_setup(connection);
     iter = xcb_setup_roots_iterator(setup);
@@ -452,8 +501,8 @@ static int Init(int argc, char *const argv[])
     xcb_create_gc(connection, normal, screen->root, mask, values);
 
     pixmap = xcb_generate_id(connection);
-    xcb_create_pixmap(connection, screen->root_depth, pixmap, screen->root,
-	    64, 64);
+    xcb_create_pixmap(connection, screen->root_depth, pixmap, screen->root, 64,
+	64);
 
     //	Create the window
     window = xcb_generate_id(connection);
@@ -505,11 +554,15 @@ static int Init(int argc, char *const argv[])
     xcb_set_wm_normal_hints(connection, window, &size_hints);
 
     // XSetClassHint from xc/lib/X11/SetHints.c
+    i = strlen(Name);
+    buf = alloca(i * 2 + 2);
+    strncpy(buf, Name, i + 1);
+    strncpy(buf + i + 1, "wmdia", sizeof("wmdia"));
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, WM_CLASS,
-	STRING, 8, strlen("wmdia,wmdia"), "wmdia\0wmdia");
+	STRING, 8, i + 1 + sizeof("wmdia"), buf);
 
-    xcb_set_wm_name(connection, window, STRING, strlen("wmdia"), "wmdia");
-    xcb_set_wm_icon_name(connection, window, STRING, strlen("wmdia"), "wmdia");
+    xcb_set_wm_name(connection, window, STRING, i, Name);
+    xcb_set_wm_icon_name(connection, window, STRING, i, Name);
 
     // XSetWMHints
     wm_hints.flags = 0;
@@ -569,7 +622,7 @@ static int Init(int argc, char *const argv[])
 }
 
 /**
-**	Exit
+**	Exit the application.
 */
 static void Exit(void)
 {
@@ -639,9 +692,9 @@ int TooltipShown;			///< flag tooltip is shown
 /**
 **	Get origin of window.
 **
-**	@param window	Get origin of this window
-**	@param[OUT] x	Absolute X position of the window
-**	@param[OUT] y	Absolute Y position of the window
+**	@param window	get origin of this window
+**	@param[out] x	absolute X position of the window
+**	@param[out] y	absolute Y position of the window
 */
 static void WindowOrigin(xcb_window_t window, int *x, int *y)
 {
@@ -744,9 +797,6 @@ static void NewTooltip(void)
     //	Find font (FIXME: only working with fixed size fonts)
     //
     font = xcb_generate_id(Connection);
-#define bFONT "-*-bitstream vera sans-*-*-*-*-17-*-*-*-*-*-*-*"
-#define FONT "-misc-fixed-medium-r-normal--20-*-75-75-c-*-iso8859-*"
-#define aFONT "7x13"
     error =
 	xcb_request_check(Connection, xcb_open_font_checked(Connection, font,
 	    strlen(FONT), FONT));
@@ -1025,8 +1075,11 @@ static void PrepareData(void)
 */
 static void PrintVersion(void)
 {
-    printf("wmdia dockapp Version 1.00 (GIT-" GIT_REV
-	"), (c) 2009 by Lutz Sammer\n"
+    printf("wmdia dockapp Version " VERSION
+#ifdef GIT_REV
+	"(GIT-" GIT_REV ")"
+#endif
+	", (c) 2009 by Lutz Sammer\n"
 	"\tLicense AGPLv3: GNU Affero General Public License version 3\n");
 }
 
@@ -1035,26 +1088,35 @@ static void PrintVersion(void)
 */
 static void PrintUsage(void)
 {
-    printf("Usage: wmdia [-e cmd] [-w]\n"
+    printf("Usage: wmdia [-e cmd] [-n name] [-w]\n"
 	"\t-e cmd\tExecute command after setup\n"
+	"\t-n name\tChange window name (default wmdia)\n"
 	"\t-w\tStart in window mode\n" "Only idiots print usage on stderr!\n");
 }
 
 /**
 **	Main entry point.
+**
+**	@param argc	number of arguments
+**	@param argv	arguments vector
 */
 int main(int argc, char *const argv[])
 {
     char *execute_cmd;
 
     execute_cmd = NULL;
+    Name = "wmdia";
+
     //
     //	Parse arguments.
     //
     for (;;) {
-	switch (getopt(argc, argv, "h?-e:w")) {
+	switch (getopt(argc, argv, "h?-e:n:w")) {
 	    case 'e':			// execute command
 		execute_cmd = optarg;
+		continue;
+	    case 'n':			// change window name
+		Name = optarg;
 		continue;
 	    case 'w':			// window mode
 		WindowMode = 1;
@@ -1090,7 +1152,9 @@ int main(int argc, char *const argv[])
 	return -1;
     }
 
-    Init(argc, argv);
+    if (Init(argc, argv) < 0) {
+	return -1;
+    }
     PrepareData();
     if (execute_cmd) {
 	System(execute_cmd);

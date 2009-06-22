@@ -20,25 +20,36 @@
 #	$Id$
 #----------------------------------------------------------------------------
 
-GIT_REV =       "`git describe --always 2>/dev/null`"
+VERSION	=	"1.02"
+GIT_REV =	$(shell git describe --always 2>/dev/null)
 
 CC=	gcc
-OPTIM=	-march=native -O2 -fomit-frame-pointer
-CFLAGS= $(OPTIM) -W -Wall -g -pipe \
-	-DGIT_REV=\"$(GIT_REV)\"
-LIBS=	`pkg-config --libs xcb-icccm xcb-shape xcb-image xcb`
+#OPTIM=	-march=native -O2 -fomit-frame-pointer
+OPTIM=	-O2 -fomit-frame-pointer
+CFLAGS= $(OPTIM) -W -Wall -W -g -pipe \
+	-DVERSION='$(VERSION)'  $(if $(GIT_REV), -DGIT_REV='"$(GIT_REV)"')
+#STATIC= --static
+LIBS=	$(STATIC) `pkg-config --libs $(STATIC) \
+	xcb-icccm xcb-shape xcb-image xcb-aux xcb` -lpthread
 
 OBJS=	wmdia.o
 FILES=	Makefile README Changelog AGPL-3.0.txt wmdia.xpm \
 	diashow.sh playvideo.sh set-command.sh set-tooltip.sh
 
+all:	wmdia
+
 wmdia:	$(OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-wmdia.o:	wmdia.xpm
+wmdia.o:	wmdia.xpm Makefile
 
 #----------------------------------------------------------------------------
 #	Developer tools
+
+doc:	$(SRCS) $(HDRS) wmdia.doxyfile
+	(cat wmdia.doxyfile; \
+	echo 'PROJECT_NUMBER=${VERSION} $(if $(GIT_REV), (GIT-$(GIT_REV)))') \
+	| doxygen -
 
 indent:
 	for i in $(OBJS:.o=.c) $(HDRS); do \
@@ -52,8 +63,11 @@ clobber:	clean
 	-rm wmdia
 
 dist:
-	tar cjCf .. wmdia-`date +%F-%H`.tar.bz2 \
-		$(addprefix wmdia/, $(FILES) $(OBJS:.o=.c))
+	tar cjCf .. www/wmdia-`date +%F-%H`.tar.bz2 \
+		$(addprefix wmdia/, $(FILES) $(HDRS) $(OBJS:.o=.c))
 
 install:
 	install -s wmdia /usr/local/bin/
+
+help:
+	@echo "make all|doc|indent|clean|clobber|dist|install|help"

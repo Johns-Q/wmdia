@@ -1,4 +1,3 @@
-
 @file README		dia dockapp.
 
 Copyright (c) 2009 by Lutz Sammer.  All Rights Reserved.
@@ -28,6 +27,9 @@ When you click on the window, the command in the property "COMMAND" is executed.
 When you move the mouse in the window the text in the property "TOOLTIP" is
 shown as tooltip.
 
+The main goal was to have a slideshow in a dockapp window, but it can also be
+used to show films, webcam in the dockapp or just a simple command button.
+
 To compile you must have libxcb (xcb-dev) installed.
 
 xprop can be used to modify the wmdia properties.
@@ -36,9 +38,16 @@ xwininfo can be used to find the window id.
 Just make make and play.
 
 Requires:
-	x11-libs/libxcb
+
+	x11-libs/libxcb and x11-libs/xcb-util
 		X C-language Bindings library
 		http://xcb.freedesktop.org/
+	
+	misc-fixed-medium (media-fonts/font-misc-misc)
+		Fixed size font for tooltip
+		http://xorg.freedesktop.org/
+
+	GNU Make 3.xx
 
 
 Example scripts:
