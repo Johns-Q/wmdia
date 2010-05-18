@@ -1,7 +1,7 @@
 ///
 ///	@file wmdia.c	@brief	DIA Dockapp
 ///
-///	Copyright (c) 2009 by Lutz Sammer.  All Rights Reserved.
+///	Copyright (c) 2009,2010 by Lutz Sammer.  All Rights Reserved.
 ///
 ///	Contributor(s):
 ///
@@ -71,6 +71,9 @@
 #include <sys/wait.h>
 
 #include <xcb/xcb.h>
+#define xcb_popcount buggy_xcb_popcount_fixup_1
+#include <xcb/xcbext.h>
+#undef xcb_popcount
 #include <xcb/shape.h>
 #include <xcb/xcb_image.h>
 #include <xcb/xcb_atom.h>
@@ -372,7 +375,6 @@ static void Loop(void)
     struct pollfd fds[1];
     xcb_generic_event_t *event;
     int n;
-    int expose_done;
 
     fds[0].fd = xcb_get_file_descriptor(Connection);
     fds[0].events = POLLIN | POLLPRI;
@@ -386,7 +388,6 @@ static void Loop(void)
 	if (n) {
 	    if (fds[0].revents & (POLLIN | POLLPRI)) {
 		// printf("%d: ready\n", fds[0].fd);
-		expose_done = 0;
 		while ((event = xcb_poll_for_event(Connection))) {
 
 		    switch (event->
@@ -394,13 +395,12 @@ static void Loop(void)
 			case XCB_EXPOSE:
 			    // printf("Expose\n");
 			    // collapse multi expose
-			    if (!expose_done) {
+			    if (!((xcb_expose_event_t*)event)->count) {
 				xcb_clear_area(Connection, 0, Window, 0, 0, 64,
 				    64);
 				//xcb_clear_area(Connection, 0, IconWindow, 0, 0, 64, 64);
 				// flush the request
 				xcb_flush(Connection);
-				expose_done = 1;
 			    }
 			    break;
 			case XCB_ENTER_NOTIFY:
@@ -508,8 +508,8 @@ static int Init(int argc, char *const argv[])
     window = xcb_generate_id(connection);
     // IconWindow = xcb_generate_id(connection);
 
-    mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-    values[0] = screen->white_pixel;
+    //mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+    //values[0] = screen->white_pixel;
     mask = XCB_CW_BACK_PIXMAP | XCB_CW_EVENT_MASK;
     values[0] = pixmap;			// screen->white_pixel;
     values[1] =
@@ -760,6 +760,7 @@ static void NewTooltip(void)
     xcb_window_t window;
     xcb_font_t font;
     xcb_alloc_color_reply_t *alloc_color;
+    xcb_alloc_color_reply_t *alloc_color2;
     xcb_generic_error_t *error;
     uint32_t mask;
     uint32_t values[4];
@@ -770,6 +771,9 @@ static void NewTooltip(void)
     alloc_color =
 	xcb_alloc_color_reply(Connection, xcb_alloc_color(Connection,
 	    Screen->default_colormap, 0xD000, 0xD000, 0), NULL);
+    alloc_color2 =
+	xcb_alloc_color_reply(Connection, xcb_alloc_color(Connection,
+	    Screen->default_colormap, 0xD000, 0, 0xD000), NULL);
 
     //	Create the window
     window = xcb_generate_id(Connection);
@@ -794,7 +798,7 @@ static void NewTooltip(void)
 	mask, values);			// mask, values
 
     //
-    //	Find font (FIXME: only working with fixed size fonts)
+    //	Find and load font
     //
     font = xcb_generate_id(Connection);
     error =
@@ -808,13 +812,10 @@ static void NewTooltip(void)
 
     // create graphics context
     FontGC = xcb_generate_id(Connection);
-    mask =
-	XCB_GC_FOREGROUND | XCB_GC_BACKGROUND | XCB_GC_FONT |
-	XCB_GC_GRAPHICS_EXPOSURES;
+    mask = XCB_GC_FOREGROUND | XCB_GC_FONT | XCB_GC_GRAPHICS_EXPOSURES;
     values[0] = Screen->black_pixel;
-    values[1] = alloc_color->pixel;
-    values[2] = font;
-    values[3] = 0;
+    values[1] = font;
+    values[2] = 0;
     xcb_create_gc(Connection, FontGC, window, mask, values);
 
     free(alloc_color);
@@ -834,6 +835,65 @@ static void DelTooltip(void)
 	// FIXME: free color
 	xcb_close_font(Connection, Font);
     }
+}
+
+/**
+**	Draw poly text. 
+**
+**	This a simple version of xcb_poly_text_8, which works only with
+**	one string with lessequal 254 characters.
+**
+**	drawable: DRAWABLE
+**	gc: GCONTEXT
+**	x, y: INT16
+**	items: LISTofTEXTITEM8)
+**
+**	TEXTELT8: TEXTELT8: [delta: INT8 string: STRING8]
+**
+**	FONT: 5 bytes 255 + FontID
+**
+**	Len8 Delta8 String8 
+**
+*/
+xcb_void_cookie_t xcb_poly_text_8_simple(xcb_connection_t * c,
+    xcb_drawable_t drawable, xcb_gcontext_t gc, int16_t x, int16_t y,
+    uint32_t len, const char * str)
+{
+    static const xcb_protocol_request_t xcb_req = {
+	/* count */ 5,
+	/* ext */ 0,
+	/* opcode */ XCB_POLY_TEXT_8,
+	/* isvoid */ 1
+    };
+    struct iovec xcb_parts[7];
+    uint8_t xcb_lendelta[2];
+    xcb_void_cookie_t xcb_ret;
+    xcb_poly_text_8_request_t xcb_out;
+
+    xcb_out.pad0 = 0;
+    xcb_out.drawable = drawable;
+    xcb_out.gc = gc;
+    xcb_out.x = x;
+    xcb_out.y = y;
+
+    xcb_lendelta[0] = len;
+    xcb_lendelta[1] = 0;
+
+    xcb_parts[2].iov_base = (char *)&xcb_out;
+    xcb_parts[2].iov_len = sizeof(xcb_out);
+    xcb_parts[3].iov_base = 0;
+    xcb_parts[3].iov_len = -xcb_parts[2].iov_len & 3;
+
+    xcb_parts[4].iov_base = xcb_lendelta;
+    xcb_parts[4].iov_len = sizeof(xcb_lendelta);
+    xcb_parts[5].iov_base = (char *)str;
+    xcb_parts[5].iov_len = len * sizeof(int8_t);
+
+    xcb_parts[6].iov_base = 0;
+    xcb_parts[6].iov_len = -(xcb_parts[4].iov_len + xcb_parts[5].iov_len) & 3;
+
+    xcb_ret.sequence = xcb_send_request(c, 0, xcb_parts + 2, &xcb_req);
+    return xcb_ret;
 }
 
 /**
@@ -857,8 +917,8 @@ static void ShowTooltip(int len, const char *str)
     //
     chars = alloca(len * 2);
     for (i = 0; i < len; ++i) {		// convert 8 -> 16
-	chars[i].byte2 = 0;
-	chars[i].byte1 = str[i];
+	chars[i].byte1 = 0;
+	chars[i].byte2 = str[i];
     }
 
     query_text_extents =
@@ -888,7 +948,7 @@ static void ShowTooltip(int len, const char *str)
     }
     tw = query_text_extents->overall_width + 16;
     if (tw < 16) {
-	tw = 16;
+	tw = 16 * 100;
     }
     //
     //	Move and show tooltip
@@ -917,13 +977,29 @@ static void ShowTooltip(int len, const char *str)
     xcb_configure_window(Connection, Tooltip, mask, values);
     xcb_map_window(Connection, Tooltip);
 
+    if (0) {
+	xcb_rectangle_t rectangle;
+
+	rectangle.x = 0 + 1;
+	rectangle.y = 0 + 1;
+	rectangle.width = tw - 1;
+	rectangle.height = th - 1;
+	xcb_poly_fill_rectangle(Connection, Tooltip, ForegroundGC, 1,
+	    &rectangle);
+    }
     //
     //	Draw text
     //
+    xcb_poly_text_8_simple(Connection, Tooltip, FontGC, 8,
+	4 + (query_text_extents->font_descent +
+	    query_text_extents->font_ascent - th) / 2 +
+	query_text_extents->font_ascent, len, str);
+#if 0
     xcb_image_text_8(Connection, len, Tooltip, FontGC, 8,
-	2 + (query_text_extents->font_descent +
+	4 + (query_text_extents->font_descent +
 	    query_text_extents->font_ascent - th) / 2 +
 	query_text_extents->font_ascent, str);
+#endif
 
     xcb_flush(Connection);
 
@@ -954,6 +1030,7 @@ static void HideTooltip(void)
 */
 static void HandleTimeout(void)
 {
+    // ...
     HideTooltip();
     xcb_clear_area(Connection, 0, Window, 0, 0, 64, 64);
     // xcb_clear_area(Connection, 0, IconWindow, 0, 0, 64, 64);
@@ -999,6 +1076,7 @@ static void WindowEnter(void)
 	Timeout = 5 * 1000;
 	return;
     }
+    // FIXME: don't show tooltip at once, small delay is better
     if (!Tooltip) {
 	NewTooltip();
     }
@@ -1079,7 +1157,7 @@ static void PrintVersion(void)
 #ifdef GIT_REV
 	"(GIT-" GIT_REV ")"
 #endif
-	", (c) 2009 by Lutz Sammer\n"
+	", (c) 2009,2010 by Lutz Sammer\n"
 	"\tLicense AGPLv3: GNU Affero General Public License version 3\n");
 }
 
