@@ -4,7 +4,7 @@
 ##
 
 ## delay between pictures
-delay=30
+delay=60
 ## name of our dia window
 name="wmdia"
 ## picture viewer
@@ -16,21 +16,20 @@ viewer="/usr/bin/feh"
 ##	Set the tooltip of wmdia
 ##
 settooltip() {
-    xprop -name $name -format TOOLTIP 8s -set TOOLTIP "$1"
+    xprop -name $name -format TOOLTIP 8s -set TOOLTIP "$1" || exit -1
 }
 
 ##
 ##	Set the command of wmdia
 ##
 setcommand() {
-    xprop -name $name -format COMMAND 8s -set COMMAND "$1"
+    xprop -name $name -format COMMAND 8s -set COMMAND "$1" || exit -1
 }
 
 ##
 ##	Show picture in wmdia and update tooltip/command
 ##
 showdia() {
-    #/usr/bin/display -backdrop -background darkgrey -gravity center -size 62x62
     /usr/bin/display -resize 62x62 -bordercolor darkgray -border 31 \
     	-gravity center -crop 62x62+0+0 -window $name "$1"
     settooltip "$1"

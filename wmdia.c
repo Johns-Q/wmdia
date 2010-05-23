@@ -1,7 +1,7 @@
 ///
-///	@file wmdia.c	@brief	DIA Dockapp
+///	@file wmdia.c		@brief	DIA Dockapp
 ///
-///	Copyright (c) 2009,2010 by Lutz Sammer.  All Rights Reserved.
+///	Copyright (c) 2009, 2010 by Lutz Sammer.  All Rights Reserved.
 ///
 ///	Contributor(s):
 ///
@@ -87,7 +87,6 @@
 static xcb_connection_t *Connection;	///< connection to X11 server
 static xcb_screen_t *Screen;		///< our screen
 static xcb_window_t Window;		///< our window
-static xcb_gcontext_t ForegroundGC;	///< foreground graphic context
 static xcb_gcontext_t NormalGC;		///< normal graphic context
 static xcb_pixmap_t Pixmap;		///< our background pixmap
 static xcb_pixmap_t Image;		///< drawing data
@@ -98,12 +97,7 @@ static xcb_atom_t TooltipAtom;		///< "TOOLTIP" property
 static int Timeout = -1;		///< timeout in ms
 static int WindowMode;			///< start in window mode
 static const char *Name;		///< window/application name
-
-/*
-**	Icon window is used in dockapps like wmDockApp (wmgeneral.c)
-**	But it works without it.
-*/
-//static xcb_window_t IconWindow;		///< our icon window
+static const char *FontTooltip;		///< font for tooltip
 
 //{@
 ///	Called from event loop
@@ -116,9 +110,10 @@ static void PropertyChanged(void);
 //@}
 
 static void DelTooltip(void);		///< forward define for Exit
+static void HideTooltip(void);		///< forward define for expose
 
 //@{
-///	Font for the tooltip
+///	Default font for the tooltip
 #define FONT "-misc-fixed-medium-r-normal--20-*-75-75-c-*-iso8859-*"
 #define aFONT "7x13"
 #define bFONT "-*-bitstream vera sans-*-*-*-*-17-*-*-*-*-*-*-*"
@@ -188,8 +183,6 @@ static xcb_image_t *XcbXpm2Image(xcb_connection_t * connection,
     }
     data++;
 
-    // printf("%dx%d #%d*%d\n", w, h, colors, bytes_per_color);
-
     //
     //	Read color table, send alloc color requests
     //
@@ -236,7 +229,6 @@ static xcb_image_t *XcbXpm2Image(xcb_connection_t * connection,
 		b = (hex[line[0] & 0xFF] << 4) | hex[line[1] & 0xFF];
 		line += 2;
 	    }
-	    // printf("Color %d %c %d %d %d\n", id, type, r, g, b);
 
 	    // 8bit rgb -> 16bit
 	    r = (65535 * (r & 0xFF) / 255);
@@ -274,7 +266,6 @@ static xcb_image_t *XcbXpm2Image(xcb_connection_t * connection,
 	    // transparent or error
 	    pixels[i] = 0UL;
 	}
-	// printf("pixels(%d) %x\n", i, pixels[i]);
     }
 
     if (depth == 1) {
@@ -288,7 +279,6 @@ static xcb_image_t *XcbXpm2Image(xcb_connection_t * connection,
     if (!image) {			// failure
 	return image;
     }
-    // printf("Image allocated\n");
 
     //
     //	Allocate empty mask (if mask is requested)
@@ -303,8 +293,10 @@ static xcb_image_t *XcbXpm2Image(xcb_connection_t * connection,
 	    memset(*mask, 255, i);
 	}
     }
-    // printf("Mask build\n");
 
+    //
+    //	Copy each pixel from xpm into the image, while creating the mask
+    //
     for (y = 0; y < h; y++) {
 	line = *data++;
 	for (x = 0; x < w; x++) {
@@ -355,10 +347,7 @@ static xcb_pixmap_t CreatePixmap(const char *const *data, xcb_pixmap_t * mask)
     pixmap = xcb_generate_id(Connection);
     xcb_create_pixmap(Connection, Screen->root_depth, pixmap, Window,
 	image->width, image->height);
-    xcb_image_put(Connection, pixmap, ForegroundGC, image, 0, 0, 0);
-    //xcb_request_check(Connection, cookie);
-
-    // printf("Image %dx%dx%d\n", image->width, image->height, image->depth);
+    xcb_image_put(Connection, pixmap, NormalGC, image, 0, 0, 0);
 
     xcb_image_destroy(image);
 
@@ -379,7 +368,6 @@ static void Loop(void)
     fds[0].fd = xcb_get_file_descriptor(Connection);
     fds[0].events = POLLIN | POLLPRI;
 
-    // printf("Loop\n");
     for (;;) {
 	n = poll(fds, 1, Timeout);
 	if (n < 0) {
@@ -387,59 +375,50 @@ static void Loop(void)
 	}
 	if (n) {
 	    if (fds[0].revents & (POLLIN | POLLPRI)) {
-		// printf("%d: ready\n", fds[0].fd);
 		while ((event = xcb_poll_for_event(Connection))) {
 
-		    switch (event->
-			response_type & XCB_EVENT_RESPONSE_TYPE_MASK) {
+		    switch (XCB_EVENT_RESPONSE_TYPE(event)) {
 			case XCB_EXPOSE:
-			    // printf("Expose\n");
 			    // collapse multi expose
 			    if (!((xcb_expose_event_t*)event)->count) {
-				xcb_clear_area(Connection, 0, Window, 0, 0, 64,
-				    64);
-				//xcb_clear_area(Connection, 0, IconWindow, 0, 0, 64, 64);
+				// FIXME: redraw the tooltip
+				HideTooltip();
+
+				// xcb_clear_area(Connection, 0, Window, 0, 0, 64, 64);
 				// flush the request
-				xcb_flush(Connection);
+				// xcb_flush(Connection);
 			    }
 			    break;
 			case XCB_ENTER_NOTIFY:
-			    // printf("enter notify\n");
 			    WindowEnter();
 			    break;
 			case XCB_LEAVE_NOTIFY:
-			    // printf("leave notify\n");
 			    WindowLeave();
 			    break;
 			case XCB_BUTTON_PRESS:
-			    // printf("button press\n");
 			    ButtonPress();
 			    break;
 			case XCB_PROPERTY_NOTIFY:
-			    // printf("property change\n");
 			    PropertyChanged();
 			    break;
 			case XCB_DESTROY_NOTIFY:
-			    printf("destroy\n");
+			    // window closed, exit application
 			    return;
 			default:
+			    // Unknown event type, ignore it
 			    printf("unknown event type %d\n",
 				event->response_type);
-			    // Unknown event type, ignore it
 			    break;
 		    }
 
 		    free(event);
 		}
 		// No event, can happen, but we must check for close
-		// printf("no event ready\n");
 		if (xcb_connection_has_error(Connection)) {
-		    // printf("closed\n");
 		    return;
 		}
 	    }
 	} else {
-	    // printf("Timeout\n");
 	    HandleTimeout();
 	}
     }
@@ -506,12 +485,9 @@ static int Init(int argc, char *const argv[])
 
     //	Create the window
     window = xcb_generate_id(connection);
-    // IconWindow = xcb_generate_id(connection);
 
-    //mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-    //values[0] = screen->white_pixel;
     mask = XCB_CW_BACK_PIXMAP | XCB_CW_EVENT_MASK;
-    values[0] = pixmap;			// screen->white_pixel;
+    values[0] = pixmap;
     values[1] =
 	XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS |
 	XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW |
@@ -529,23 +505,6 @@ static int Init(int argc, char *const argv[])
 	XCB_WINDOW_CLASS_INPUT_OUTPUT,	// class
 	screen->root_visual,		// visual
 	mask, values);			// mask, values
-
-    mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-    values[0] = screen->white_pixel;
-    values[1] = XCB_EVENT_MASK_EXPOSURE;
-    // create icon win
-    /*
-       xcb_create_window(connection,	// Connection
-       XCB_COPY_FROM_PARENT,		// depth (same as root)
-       IconWindow,			// window Id
-       window,				// parent window
-       0, 0,				// x, y
-       64, 64,				// width, height
-       0,				// border_width
-       XCB_WINDOW_CLASS_INPUT_OUTPUT,	// class
-       screen->root_visual,		// visual
-       mask, values);			// mask, values
-     */
 
     // XSetWMNormalHints
     size_hints.flags = 0;		// FIXME: bad lib design
@@ -566,7 +525,6 @@ static int Init(int argc, char *const argv[])
 
     // XSetWMHints
     wm_hints.flags = 0;
-    //xcb_wm_hints_set_icon_window(&wm_hints, IconWindow);
     xcb_wm_hints_set_icon_pixmap(&wm_hints, pixmap);
     xcb_wm_hints_set_window_group(&wm_hints, window);
     xcb_wm_hints_set_withdrawn(&wm_hints);
@@ -587,24 +545,6 @@ static int Init(int argc, char *const argv[])
     xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, WM_COMMAND,
 	STRING, 8, n, s);
 
-    //	SHAPE
-    if (0) {
-	// Shape is later set
-	const int bytes = ((64 / 8) + 1) * 64;
-	uint8_t *mask;
-	xcb_pixmap_t pm;
-
-	mask = malloc(bytes);
-	memset(mask, 0xFF, bytes);
-	mask[0] = 0x00;
-	pm = xcb_create_pixmap_from_bitmap_data(connection, window, mask, 64,
-	    64, 1, 0, 0, NULL);
-	// printf("mask %d\n", pm);
-	xcb_shape_mask(connection, XCB_SHAPE_SO_SET, XCB_SHAPE_SK_BOUNDING,
-	    window, 0, 0, pm);
-	xcb_free_pixmap(connection, pm);
-	free(mask);
-    }
     //	Map the window on the screen
     xcb_map_window(connection, window);
 
@@ -614,7 +554,6 @@ static int Init(int argc, char *const argv[])
     Connection = connection;
     Screen = screen;
     Window = window;
-    ForegroundGC = foreground;
     NormalGC = normal;
     Pixmap = pixmap;
 
@@ -626,15 +565,12 @@ static int Init(int argc, char *const argv[])
 */
 static void Exit(void)
 {
-
     DelTooltip();
 
     xcb_destroy_window(Connection, Window);
     Window = 0;
-    // xcb_destroy_window(Connection, IconWindow);
-    // IconWindow = 0;
 
-    // FIXME: free GC ...
+    xcb_free_gc(Connection, NormalGC);
 
     xcb_free_pixmap(Connection, Pixmap);
     if (Image) {
@@ -760,10 +696,9 @@ static void NewTooltip(void)
     xcb_window_t window;
     xcb_font_t font;
     xcb_alloc_color_reply_t *alloc_color;
-    xcb_alloc_color_reply_t *alloc_color2;
     xcb_generic_error_t *error;
     uint32_t mask;
-    uint32_t values[4];
+    uint32_t values[5];
 
     //
     //	allocate YELLOW pixel.
@@ -771,20 +706,18 @@ static void NewTooltip(void)
     alloc_color =
 	xcb_alloc_color_reply(Connection, xcb_alloc_color(Connection,
 	    Screen->default_colormap, 0xD000, 0xD000, 0), NULL);
-    alloc_color2 =
-	xcb_alloc_color_reply(Connection, xcb_alloc_color(Connection,
-	    Screen->default_colormap, 0xD000, 0, 0xD000), NULL);
 
     //	Create the window
     window = xcb_generate_id(Connection);
 
     mask =
 	XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL | XCB_CW_OVERRIDE_REDIRECT |
-	XCB_CW_SAVE_UNDER;
+	XCB_CW_SAVE_UNDER | XCB_CW_EVENT_MASK;
     values[0] = alloc_color->pixel;
     values[1] = Screen->black_pixel;
     values[2] = 1;
     values[3] = 1;
+    values[4] = /*XCB_EVENT_MASK_EXPOSURE |*/ XCB_EVENT_MASK_BUTTON_PRESS;
 
     xcb_create_window(Connection,	// Connection
 	XCB_COPY_FROM_PARENT,		// depth (same as root)
@@ -803,7 +736,7 @@ static void NewTooltip(void)
     font = xcb_generate_id(Connection);
     error =
 	xcb_request_check(Connection, xcb_open_font_checked(Connection, font,
-	    strlen(FONT), FONT));
+	    strlen(FontTooltip), FontTooltip));
     if (error) {
 	fprintf(stderr, "Can't open font %d\n", error->error_code);
 	exit(-1);
@@ -816,6 +749,7 @@ static void NewTooltip(void)
     values[0] = Screen->black_pixel;
     values[1] = font;
     values[2] = 0;
+
     xcb_create_gc(Connection, FontGC, window, mask, values);
 
     free(alloc_color);
@@ -853,6 +787,9 @@ static void DelTooltip(void)
 **	FONT: 5 bytes 255 + FontID
 **
 **	Len8 Delta8 String8 
+**
+**	@note the xcb_poly_text_8 of libxcb didn't work as expected,
+**	atleast in versions <= 1.6
 **
 */
 xcb_void_cookie_t xcb_poly_text_8_simple(xcb_connection_t * c,
@@ -898,6 +835,9 @@ xcb_void_cookie_t xcb_poly_text_8_simple(xcb_connection_t * c,
 
 /**
 **	Show tooltip
+**
+**	@param len	length of text to display
+**	@param str	text to display
 */
 static void ShowTooltip(int len, const char *str)
 {
@@ -977,16 +917,6 @@ static void ShowTooltip(int len, const char *str)
     xcb_configure_window(Connection, Tooltip, mask, values);
     xcb_map_window(Connection, Tooltip);
 
-    if (0) {
-	xcb_rectangle_t rectangle;
-
-	rectangle.x = 0 + 1;
-	rectangle.y = 0 + 1;
-	rectangle.width = tw - 1;
-	rectangle.height = th - 1;
-	xcb_poly_fill_rectangle(Connection, Tooltip, ForegroundGC, 1,
-	    &rectangle);
-    }
     //
     //	Draw text
     //
@@ -994,12 +924,6 @@ static void ShowTooltip(int len, const char *str)
 	4 + (query_text_extents->font_descent +
 	    query_text_extents->font_ascent - th) / 2 +
 	query_text_extents->font_ascent, len, str);
-#if 0
-    xcb_image_text_8(Connection, len, Tooltip, FontGC, 8,
-	4 + (query_text_extents->font_descent +
-	    query_text_extents->font_ascent - th) / 2 +
-	query_text_extents->font_ascent, str);
-#endif
 
     xcb_flush(Connection);
 
@@ -1021,8 +945,6 @@ static void HideTooltip(void)
     }
 }
 
-// 15 -> 13 -> 16/96/unmap
-
 // ------------------------------------------------------------------------- //
 
 /**
@@ -1030,12 +952,8 @@ static void HideTooltip(void)
 */
 static void HandleTimeout(void)
 {
-    // ...
+    // Remove the tooltip, if still shown
     HideTooltip();
-    xcb_clear_area(Connection, 0, Window, 0, 0, 64, 64);
-    // xcb_clear_area(Connection, 0, IconWindow, 0, 0, 64, 64);
-    // flush the request
-    xcb_flush(Connection);
 }
 
 /**
@@ -1055,7 +973,6 @@ static void ButtonPress(void)
 	    strcpy(cmd, prop.name);
 	    cmd[prop.name_len] = '\0';
 
-	    printf("Execute:%s\n", cmd);
 	    System(cmd);
 	}
 
@@ -1072,7 +989,6 @@ static void WindowEnter(void)
     xcb_get_text_property_reply_t prop;
 
     if (TooltipShown) {
-	// printf("Already shown\n");
 	Timeout = 5 * 1000;
 	return;
     }
@@ -1085,8 +1001,6 @@ static void WindowEnter(void)
     //
     cookie = xcb_get_text_property_unchecked(Connection, Window, TooltipAtom);
     if (xcb_get_text_property_reply(Connection, cookie, &prop, NULL)) {
-
-	// printf("prop: %d %.*s\n", prop.name_len, prop.name_len, prop.name);
 
 	if (prop.name_len) {
 	    ShowTooltip(prop.name_len, prop.name);
@@ -1153,11 +1067,11 @@ static void PrepareData(void)
 */
 static void PrintVersion(void)
 {
-    printf("wmdia dockapp Version " VERSION
+    printf("wmdia DIA dockapp Version " VERSION
 #ifdef GIT_REV
 	"(GIT-" GIT_REV ")"
 #endif
-	", (c) 2009,2010 by Lutz Sammer\n"
+	", (c) 2009, 2010 by Lutz Sammer\n"
 	"\tLicense AGPLv3: GNU Affero General Public License version 3\n");
 }
 
@@ -1166,8 +1080,10 @@ static void PrintVersion(void)
 */
 static void PrintUsage(void)
 {
-    printf("Usage: wmdia [-e cmd] [-n name] [-w]\n"
+    printf("Usage: wmdia [-e cmd] [-f font] [-h] [-n name] [-w]\n"
 	"\t-e cmd\tExecute command after setup\n"
+	"\t-f font\tFont for tooltip\n"
+	"\t-h\tDisplay this text\n"
 	"\t-n name\tChange window name (default wmdia)\n"
 	"\t-w\tStart in window mode\n" "Only idiots print usage on stderr!\n");
 }
@@ -1184,14 +1100,18 @@ int main(int argc, char *const argv[])
 
     execute_cmd = NULL;
     Name = "wmdia";
+    FontTooltip = FONT;			// setup defaults
 
     //
     //	Parse arguments.
     //
     for (;;) {
-	switch (getopt(argc, argv, "h?-e:n:w")) {
+	switch (getopt(argc, argv, "h?-e:f:n:w")) {
 	    case 'e':			// execute command
 		execute_cmd = optarg;
+		continue;
+	    case 'f':			// font of tooltip
+		FontTooltip = optarg;
 		continue;
 	    case 'n':			// change window name
 		Name = optarg;
@@ -1217,7 +1137,7 @@ int main(int argc, char *const argv[])
 		return -1;
 	    default:
 		PrintVersion();
-		fprintf(stderr, "Unkown option '%c'\n", optopt);
+		fprintf(stderr, "Unknown option '%c'\n", optopt);
 		return -1;
 	}
 	break;

@@ -1,4 +1,11 @@
 User johns
+Sun May 23 16:16:32 CEST 2010
+
+    Code cleanup, removed unused code parts.
+    Added wmdia.doxyfile to distribution.
+    Tooltip font can be configured by a command line argument.
+    New example script: show a single picture in wmdia.
+
 Mon Jun 22 13:11:17 CEST 2009
 
     Added commandline argument for window name, to support multiple wmdias.

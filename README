@@ -1,6 +1,6 @@
-@file README		dia dockapp.
+@file README		@brief	DIA dockapp.
 
-Copyright (c) 2009 by Lutz Sammer.  All Rights Reserved.
+Copyright (c) 2009, 2010 by Lutz Sammer.  All Rights Reserved.
 
 Contributor(s):
 
@@ -37,6 +37,8 @@ xwininfo can be used to find the window id.
 
 Just make make and play.
 
+Use wmdia -h to see the command-line options.
+
 Requires:
 
 	x11-libs/libxcb and x11-libs/xcb-util
@@ -49,6 +51,15 @@ Requires:
 
 	GNU Make 3.xx
 
+Suggested for scripts:
+
+	media-gfx/imagemagick
+		A collection of tools and libraries for many image formats
+		http://www.imagemagick.org/
+
+	media-video/mplayer
+		Media Player for Linux
+		http://www.mplayerhq.hu/
 
 Example scripts:
 
@@ -56,6 +67,8 @@ Example scripts:
 		Show pictures in wmdia.
 	- playvideo.sh
 		Play a video in wmdia.
+	- showpicture.sh
+		Show picture in wmdia.
 	- set-command.sh
 		How to change the command executed by wmdia.
 	- set-tooltop.sh

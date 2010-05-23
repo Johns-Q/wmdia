@@ -1,7 +1,7 @@
 #
-#	@file Makefile		DIA Dockapp
+#	@file Makefile		@brief	DIA Dockapp
 #
-#	Copyright (c) 2009 by Lutz Sammer.  All Rights Reserved.
+#	Copyright (c) 2009, 2010 by Lutz Sammer.  All Rights Reserved.
 #
 #	Contributor(s):
 #
@@ -20,12 +20,11 @@
 #	$Id$
 #----------------------------------------------------------------------------
 
-VERSION	=	"1.02"
+VERSION	=	"1.03"
 GIT_REV =	$(shell git describe --always 2>/dev/null)
 
 CC=	gcc
-#OPTIM=	-march=native -O2 -fomit-frame-pointer
-OPTIM=	-O2 -fomit-frame-pointer
+OPTIM=	-march=native -O2 -fomit-frame-pointer
 CFLAGS= $(OPTIM) -W -Wall -W -g -pipe \
 	-DVERSION='$(VERSION)'  $(if $(GIT_REV), -DGIT_REV='"$(GIT_REV)"')
 #STATIC= --static
@@ -33,8 +32,8 @@ LIBS=	$(STATIC) `pkg-config --libs $(STATIC) \
 	xcb-icccm xcb-shape xcb-image xcb-aux xcb` -lpthread
 
 OBJS=	wmdia.o
-FILES=	Makefile README Changelog AGPL-3.0.txt wmdia.xpm \
-	diashow.sh playvideo.sh set-command.sh set-tooltip.sh
+FILES=	Makefile README Changelog AGPL-3.0.txt wmdia.doxyfile wmdia.xpm \
+	diashow.sh playvideo.sh set-command.sh set-tooltip.sh showpicture.sh
 
 all:	wmdia
 
@@ -60,13 +59,15 @@ clean:
 	-rm *.o *~
 
 clobber:	clean
-	-rm wmdia
+	-rm -rf wmdia www/html
 
 dist:
 	tar cjCf .. www/wmdia-`date +%F-%H`.tar.bz2 \
 		$(addprefix wmdia/, $(FILES) $(HDRS) $(OBJS:.o=.c))
 
-install:
+install:	all
+	mkdir -p /usr/local/bin
+	strip --strip-unneeded -R .comment wmdia
 	install -s wmdia /usr/local/bin/
 
 help:
