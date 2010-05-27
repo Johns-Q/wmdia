@@ -1,4 +1,9 @@
 User johns
+Thu May 27 16:23:18 CEST 2010
+
+    Added support to run on any X11 screen.
+    Fixed bug: Initial (empty) content not shown correct.
+
 Sun May 23 16:16:32 CEST 2010
 
     Code cleanup, removed unused code parts.

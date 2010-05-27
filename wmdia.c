@@ -384,9 +384,9 @@ static void Loop(void)
 				// FIXME: redraw the tooltip
 				HideTooltip();
 
-				// xcb_clear_area(Connection, 0, Window, 0, 0, 64, 64);
+				//xcb_clear_area(Connection, 0, Window, 0, 0, 64, 64);
 				// flush the request
-				// xcb_flush(Connection);
+				//xcb_flush(Connection);
 			    }
 			    break;
 			case XCB_ENTER_NOTIFY:
@@ -434,8 +434,8 @@ static int Init(int argc, char *const argv[])
 {
     const char *display_name;
     xcb_connection_t *connection;
-    const xcb_setup_t *setup;
     xcb_screen_iterator_t iter;
+    int screen_nr;
     xcb_screen_t *screen;
     xcb_gcontext_t foreground;
     xcb_gcontext_t normal;
@@ -454,14 +454,16 @@ static int Init(int argc, char *const argv[])
 
     //	Open the connection to the X server.
     //	use the DISPLAY environment variable as the default display name
-    connection = xcb_connect(NULL, NULL);
+    connection = xcb_connect(NULL, &screen_nr);
     if (!connection || xcb_connection_has_error(connection)) {
 	fprintf(stderr, "Can't connect to X11 server on %s\n", display_name);
 	return -1;
     }
-    //	Get the first screen
-    setup = xcb_get_setup(connection);
-    iter = xcb_setup_roots_iterator(setup);
+    //	Get the requested screen number
+    iter = xcb_setup_roots_iterator(xcb_get_setup(connection));
+    for (i=0; i<screen_nr; ++i) {
+	xcb_screen_next(&iter);
+    }
     screen = iter.data;
 
     //	Create black (foreground) graphic context
@@ -547,7 +549,7 @@ static int Init(int argc, char *const argv[])
 
     //	Map the window on the screen
     xcb_map_window(connection, window);
-
+				
     //	Make sure commands are sent
     xcb_flush(connection);
 
@@ -1157,6 +1159,11 @@ int main(int argc, char *const argv[])
     if (execute_cmd) {
 	System(execute_cmd);
     }
+    // show initial content
+    xcb_clear_area(Connection, 0, Window, 0, 0, 64, 64);
+    // flush the request
+    xcb_flush(Connection);
+   
     Loop();
     Exit();
 
