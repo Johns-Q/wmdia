@@ -437,7 +437,6 @@ static int Init(int argc, char *const argv[])
     xcb_screen_iterator_t iter;
     int screen_nr;
     xcb_screen_t *screen;
-    xcb_gcontext_t foreground;
     xcb_gcontext_t normal;
     uint32_t mask;
     uint32_t values[3];
@@ -465,13 +464,6 @@ static int Init(int argc, char *const argv[])
 	xcb_screen_next(&iter);
     }
     screen = iter.data;
-
-    //	Create black (foreground) graphic context
-    foreground = xcb_generate_id(connection);
-    mask = XCB_GC_FOREGROUND | XCB_GC_GRAPHICS_EXPOSURES;
-    values[0] = screen->black_pixel;
-    values[1] = 0;
-    xcb_create_gc(connection, foreground, screen->root, mask, values);
 
     //	Create normal graphic context
     normal = xcb_generate_id(connection);
