@@ -33,6 +33,7 @@ LIBS=	$(STATIC) `pkg-config --libs $(STATIC) \
 
 OBJS=	wmdia.o
 FILES=	Makefile README Changelog AGPL-3.0.txt wmdia.doxyfile wmdia.xpm \
+	wmdia.1 \
 	diashow.sh playvideo.sh set-command.sh set-tooltip.sh showpicture.sh
 
 all:	wmdia
@@ -66,9 +67,9 @@ dist:
 		$(addprefix wmdia/, $(FILES) $(HDRS) $(OBJS:.o=.c))
 
 install:	all
-	mkdir -p /usr/local/bin
 	strip --strip-unneeded -R .comment wmdia
 	install -s wmdia /usr/local/bin/
+	install -D wmdia.1 /usr/local/share/man/man1/wmdia.1
 
 help:
 	@echo "make all|doc|indent|clean|clobber|dist|install|help"

@@ -1,0 +1,96 @@
+.\"
+.\"	@file wmdia.1	@brief DIA Dockapp
+.\"
+.\"	Copyright (c) 2009, 2010 by Lutz Sammer.  All Rights Reserved.
+.\"
+.\"	Contributor(s):
+.\"
+.\"	License: AGPLv3
+.\"
+.\"	This program is free software: you can redistribute it and/or modify
+.\"	it under the terms of the GNU Affero General Public License as
+.\"	published by the Free Software Foundation, either version 3 of the
+.\"	License.
+.\"
+.\"	This program is distributed in the hope that it will be useful,
+.\"	but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"	GNU Affero General Public License for more details.
+.\"
+.\"	$Id$
+.\" ------------------------------------------------------------------------
+.TH "wmdia" 1 "2010-09-23" "1" "wmdia Manual"
+
+.SH NAME
+wmdia \- a DIA dockapp
+
+.SH SYNOPSIS
+.B wmdia
+.BI [\-?|\-h]
+.BI [\-e \ command ]
+.BI [\-f \ font ]
+.BI [\-n \ name ]
+.BI [\-w]
+
+.SH DESCRIPTION
+"dia" is a german word for "reversal film".
+.LP
+This is a small dockapp, that creates an empty window with a 62x62 background
+pixmap. 
+.LP
+The background pixmap can be used to display any information.
+.LP
+The window property "COMMAND" is executed, when you click into this window.
+.LP
+The property "TOOLTIP" is shown, when you move the mouse into the window.
+
+.SH OPTIONS
+.TP
+.B \-?|\-h
+Show short usage help and exit.  The help is printed to stdout.  A note to all
+developers: please print to stdout!
+.TP
+.BI \-e \ command
+Execute
+.I command
+after setup.  Can be used to start application or scripts which use wmdia.
+.TP
+.BI \-f \ font
+The tooltip is shown using this font.
+.TP
+.BI \-n \ name
+Window name of wmdia, the default is 'wmdia'.  Can be used to have more than
+one wmdia on desktop.
+.TP
+.B \-w
+Start in window mode, used for debugging.  The dockapp gets the normal window
+borders and title.
+
+.SH PROPERTIES
+.TP
+.I COMMAND
+Command property, this command is executed, when you click into the wmdia 
+window.
+.LP
+xprop -name wmdia -format COMMAND 8s -set COMMAND "your command"
+.TP
+.I TOOLTIP
+Tooltip property, this text is shown, when you move the mouse into the wmdia
+window.
+.LP
+xprop -name wmdia -format TOOLTIP 8s -set TOOLTIP "your text"
+
+.SH EXAMPLES
+.TP
+Show a picture in the wmdia dockapp:
+display -resize 62x62 -bordercolor darkgray -border 31 -gravity center
+-crop 62x62+0+0 -window ${wmdia:-wmdia} picture.jpg
+.TP
+Set command to execute on click:
+xprop -name ${wmdia:-wmdia} -format COMMAND 8s -set COMMAND "rxvt"
+.TP
+Set tooltip to show on enter:
+xprop -name ${wmdia:-wmdia} -format TOOLTIP 8s -set TOOLTIP "click to run rxvt"
+
+.SH AUTHOR
+Copyright (C) 2010 Lutz Sammer.  License: AGPLv3.
