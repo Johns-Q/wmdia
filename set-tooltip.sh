@@ -2,4 +2,4 @@
 #
 #	Example how to set wmdia tooltip property
 #
-xprop -name wmdia -format TOOLTIP 8s -set TOOLTIP "$*"
+xprop -name ${wmdia:-"wmdia"} -format TOOLTIP 8s -set TOOLTIP "$*"

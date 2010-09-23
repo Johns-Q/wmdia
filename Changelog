@@ -1,4 +1,9 @@
 User johns
+Thu Sep 23 20:56:18 CEST 2010
+
+    Add man page.
+    Update to doxygen 1.7.1. Documentation corrections.
+
 Thu May 27 16:23:18 CEST 2010
 
     Added support to run on any X11 screen.

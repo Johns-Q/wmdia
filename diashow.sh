@@ -6,7 +6,7 @@
 ## delay between pictures
 delay=60
 ## name of our dia window
-name="wmdia"
+name=${wmdia:-"wmdia"}
 ## picture viewer
 viewer="/usr/bin/feh"
 ## or set background
@@ -75,6 +75,14 @@ recursive() {
     find "$1" -xdev -type f -readable \( `images` \) -print 2>/dev/null | showinput
 }
 
+##
+##	Show  recursive all images of directory in random order
+##
+random_recursive() {
+    find "$1" -xdev -type f -readable \( `images` \) -print 2>/dev/null \
+    	| sort -R | showinput
+}
+
 #	Show only one picture
 #showdia wmdia.xpm
 #	Show all pictures in background directory
@@ -84,4 +92,5 @@ recursive() {
 
 #	Loop for ever 
 viewer="/usr/bin/fbsetbg -a"
-while true; do showdir ~/.fluxbox/backgrounds; done;
+
+while true; do random_recursive ${1:-~/.fluxbox/backgrounds}; done;

@@ -4,7 +4,7 @@
 #
 
 ## name of our dia window
-name="wmdia"
+name=${wmdia:-"wmdia"}
 
 ##
 ##	Set the tooltip of wmdia
@@ -31,4 +31,7 @@ wid=`xwininfo -name $name |
 #
 settooltip "Playing video $*"
 setcommand ""
-mplayer -wid $wid -keepaspect -zoom -vo x11 $*
+# keep aspect ratio
+mplayer -wid $wid -vf scale=62:-3 -vo x11 -ao null "$@"
+# full sized
+#mplayer -wid $wid -zoom -vo x11 -ao null "$@"

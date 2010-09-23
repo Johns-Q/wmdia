@@ -279,7 +279,6 @@ static xcb_image_t *XcbXpm2Image(xcb_connection_t * connection,
     if (!image) {			// failure
 	return image;
     }
-
     //
     //	Allocate empty mask (if mask is requested)
     //
@@ -293,7 +292,6 @@ static xcb_image_t *XcbXpm2Image(xcb_connection_t * connection,
 	    memset(*mask, 255, i);
 	}
     }
-
     //
     //	Copy each pixel from xpm into the image, while creating the mask
     //
@@ -380,7 +378,7 @@ static void Loop(void)
 		    switch (XCB_EVENT_RESPONSE_TYPE(event)) {
 			case XCB_EXPOSE:
 			    // collapse multi expose
-			    if (!((xcb_expose_event_t*)event)->count) {
+			    if (!((xcb_expose_event_t *) event)->count) {
 				// FIXME: redraw the tooltip
 				HideTooltip();
 
@@ -406,8 +404,8 @@ static void Loop(void)
 			    return;
 			default:
 			    // Unknown event type, ignore it
-			    printf("unknown event type %d\n",
-				event->response_type);
+			    //printf("unknown event type %d\n",
+			    //	    event->response_type);
 			    break;
 		    }
 
@@ -460,7 +458,7 @@ static int Init(int argc, char *const argv[])
     }
     //	Get the requested screen number
     iter = xcb_setup_roots_iterator(xcb_get_setup(connection));
-    for (i=0; i<screen_nr; ++i) {
+    for (i = 0; i < screen_nr; ++i) {
 	xcb_screen_next(&iter);
     }
     screen = iter.data;
@@ -541,7 +539,7 @@ static int Init(int argc, char *const argv[])
 
     //	Map the window on the screen
     xcb_map_window(connection, window);
-				
+
     //	Make sure commands are sent
     xcb_flush(connection);
 
@@ -711,7 +709,7 @@ static void NewTooltip(void)
     values[1] = Screen->black_pixel;
     values[2] = 1;
     values[3] = 1;
-    values[4] = /*XCB_EVENT_MASK_EXPOSURE |*/ XCB_EVENT_MASK_BUTTON_PRESS;
+    values[4] = /*XCB_EVENT_MASK_EXPOSURE | */ XCB_EVENT_MASK_BUTTON_PRESS;
 
     xcb_create_window(Connection,	// Connection
 	XCB_COPY_FROM_PARENT,		// depth (same as root)
@@ -788,7 +786,7 @@ static void DelTooltip(void)
 */
 xcb_void_cookie_t xcb_poly_text_8_simple(xcb_connection_t * c,
     xcb_drawable_t drawable, xcb_gcontext_t gc, int16_t x, int16_t y,
-    uint32_t len, const char * str)
+    uint32_t len, const char *str)
 {
     static const xcb_protocol_request_t xcb_req = {
 	/* count */ 5,
@@ -1076,8 +1074,7 @@ static void PrintUsage(void)
 {
     printf("Usage: wmdia [-e cmd] [-f font] [-h] [-n name] [-w]\n"
 	"\t-e cmd\tExecute command after setup\n"
-	"\t-f font\tFont for tooltip\n"
-	"\t-h\tDisplay this text\n"
+	"\t-f font\tFont for tooltip\n" "\t-h\tDisplay this text\n"
 	"\t-n name\tChange window name (default wmdia)\n"
 	"\t-w\tStart in window mode\n" "Only idiots print usage on stderr!\n");
 }
@@ -1155,7 +1152,7 @@ int main(int argc, char *const argv[])
     xcb_clear_area(Connection, 0, Window, 0, 0, 64, 64);
     // flush the request
     xcb_flush(Connection);
-   
+
     Loop();
     Exit();
 
