@@ -63,7 +63,7 @@ clobber:	clean
 	-rm -rf wmdia www/html
 
 dist:
-	tar cjf wmc2d-`date +%F-%H`.tar.bz2 --transform 's,^,wmdia/,' \
+	tar cjf wmdia-`date +%F-%H`.tar.bz2 --transform 's,^,wmdia/,' \
 		$(FILES) $(OBJS:.o=.c)
 
 install:	all
