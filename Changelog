@@ -1,4 +1,9 @@
 User johns
+Fri Apr 29 19:45:50 CEST 2011
+
+    Made compatible with xcb version >= 1.7 and xcb-utils version >= 0.3.8
+    Fix that tooltip blinks, when button command changes tooltip.
+
 Thu Sep 23 20:56:18 CEST 2010
 
     Add man page.

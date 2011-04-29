@@ -1,7 +1,7 @@
 ///
 ///	@file wmdia.c		@brief	DIA Dockapp
 ///
-///	Copyright (c) 2009, 2010 by Lutz Sammer.  All Rights Reserved.
+///	Copyright (c) 2009 - 2011 by Lutz Sammer.  All Rights Reserved.
 ///
 ///	Contributor(s):
 ///
@@ -75,6 +75,7 @@
 #include <xcb/xcbext.h>
 #undef xcb_popcount
 #include <xcb/shape.h>
+#include <xcb/xcb_event.h>
 #include <xcb/xcb_image.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_icccm.h>
@@ -114,7 +115,9 @@ static void HideTooltip(void);		///< forward define for expose
 
 //@{
 ///	Default font for the tooltip
+#ifndef FONT
 #define FONT "-misc-fixed-medium-r-normal--20-*-75-75-c-*-iso8859-*"
+#endif
 #define aFONT "7x13"
 #define bFONT "-*-bitstream vera sans-*-*-*-*-17-*-*-*-*-*-*-*"
 //@}
@@ -404,8 +407,8 @@ static void Loop(void)
 			    return;
 			default:
 			    // Unknown event type, ignore it
-			    //printf("unknown event type %d\n",
-			    //	    event->response_type);
+			    printf("unknown event type %d\n",
+				XCB_EVENT_RESPONSE_TYPE(event));
 			    break;
 		    }
 
@@ -441,7 +444,7 @@ static int Init(int argc, char *const argv[])
     xcb_pixmap_t pixmap;
     xcb_window_t window;
     xcb_size_hints_t size_hints;
-    xcb_wm_hints_t wm_hints;
+    xcb_icccm_wm_hints_t wm_hints;
     int i;
     int n;
     char *s;
@@ -483,8 +486,6 @@ static int Init(int argc, char *const argv[])
     values[1] =
 	XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS |
 	XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_LEAVE_WINDOW |
-	/*XCB_EVENT_MASK_STRUCTURE_NOTIFY |
-	   XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | */
 	XCB_EVENT_MASK_PROPERTY_CHANGE;
 
     xcb_create_window(connection,	// Connection
@@ -500,30 +501,28 @@ static int Init(int argc, char *const argv[])
 
     // XSetWMNormalHints
     size_hints.flags = 0;		// FIXME: bad lib design
-    xcb_size_hints_set_position(&size_hints, 1, 0, 0);
-    xcb_size_hints_set_size(&size_hints, 1, 64, 64);
-    xcb_set_wm_normal_hints(connection, window, &size_hints);
+    xcb_icccm_size_hints_set_position(&size_hints, 1, 0, 0);
+    xcb_icccm_size_hints_set_size(&size_hints, 1, 64, 64);
+    xcb_icccm_set_wm_normal_hints(connection, window, &size_hints);
 
-    // XSetClassHint from xc/lib/X11/SetHints.c
     i = strlen(Name);
     buf = alloca(i * 2 + 2);
     strncpy(buf, Name, i + 1);
     strncpy(buf + i + 1, "wmdia", sizeof("wmdia"));
-    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, WM_CLASS,
-	STRING, 8, i + 1 + sizeof("wmdia"), buf);
+    xcb_icccm_set_wm_class(connection, window, i + 1 + sizeof("wmdia"), buf);
 
-    xcb_set_wm_name(connection, window, STRING, i, Name);
-    xcb_set_wm_icon_name(connection, window, STRING, i, Name);
+    xcb_icccm_set_wm_name(connection, window, XCB_ATOM_STRING, 8, i, Name);
+    xcb_icccm_set_wm_icon_name(connection, window, XCB_ATOM_STRING, 8, i, Name);
 
     // XSetWMHints
     wm_hints.flags = 0;
-    xcb_wm_hints_set_icon_pixmap(&wm_hints, pixmap);
-    xcb_wm_hints_set_window_group(&wm_hints, window);
-    xcb_wm_hints_set_withdrawn(&wm_hints);
+    xcb_icccm_wm_hints_set_icon_pixmap(&wm_hints, pixmap);
+    xcb_icccm_wm_hints_set_window_group(&wm_hints, window);
+    xcb_icccm_wm_hints_set_withdrawn(&wm_hints);
     if (WindowMode) {
-	xcb_wm_hints_set_none(&wm_hints);
+	xcb_icccm_wm_hints_set_none(&wm_hints);
     }
-    xcb_set_wm_hints(connection, window, &wm_hints);
+    xcb_icccm_set_wm_hints(connection, window, &wm_hints);
 
     // XSetCommand (see xlib source)
     for (n = i = 0; i < argc; ++i) {	// length of string prop
@@ -534,8 +533,8 @@ static int Init(int argc, char *const argv[])
 	strcpy(s + n, argv[i]);
 	n += strlen(s + n) + 1;
     }
-    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, WM_COMMAND,
-	STRING, 8, n, s);
+    xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window,
+    	XCB_ATOM_WM_COMMAND, XCB_ATOM_STRING, 8, n, s);
 
     //	Map the window on the screen
     xcb_map_window(connection, window);
@@ -709,7 +708,7 @@ static void NewTooltip(void)
     values[1] = Screen->black_pixel;
     values[2] = 1;
     values[3] = 1;
-    values[4] = /*XCB_EVENT_MASK_EXPOSURE | */ XCB_EVENT_MASK_BUTTON_PRESS;
+    values[4] = XCB_EVENT_MASK_BUTTON_PRESS;
 
     xcb_create_window(Connection,	// Connection
 	XCB_COPY_FROM_PARENT,		// depth (same as root)
@@ -955,11 +954,11 @@ static void ButtonPress(void)
 {
     char *cmd;
     xcb_get_property_cookie_t cookie;
-    xcb_get_text_property_reply_t prop;
+    xcb_icccm_get_text_property_reply_t prop;
 
-    cookie = xcb_get_text_property_unchecked(Connection, Window, CommandAtom);
-    if (xcb_get_text_property_reply(Connection, cookie, &prop, NULL)) {
-
+    cookie = xcb_icccm_get_text_property_unchecked(Connection, Window,
+    	CommandAtom);
+    if (xcb_icccm_get_text_property_reply(Connection, cookie, &prop, NULL)) {
 	if (prop.name_len) {
 	    cmd = alloca(prop.name_len + 1);
 	    strcpy(cmd, prop.name);
@@ -968,7 +967,7 @@ static void ButtonPress(void)
 	    System(cmd);
 	}
 
-	xcb_get_text_property_reply_wipe(&prop);
+	xcb_icccm_get_text_property_reply_wipe(&prop);
     }
 }
 
@@ -978,7 +977,7 @@ static void ButtonPress(void)
 static void WindowEnter(void)
 {
     xcb_get_property_cookie_t cookie;
-    xcb_get_text_property_reply_t prop;
+    xcb_icccm_get_text_property_reply_t prop;
 
     if (TooltipShown) {
 	Timeout = 5 * 1000;
@@ -991,18 +990,17 @@ static void WindowEnter(void)
     //
     //	Get property "TOOLTIP" attached to our window.
     //
-    cookie = xcb_get_text_property_unchecked(Connection, Window, TooltipAtom);
-    if (xcb_get_text_property_reply(Connection, cookie, &prop, NULL)) {
-
+    cookie = xcb_icccm_get_text_property_unchecked(Connection, Window, TooltipAtom);
+    if (xcb_icccm_get_text_property_reply(Connection, cookie, &prop, NULL)) {
 	if (prop.name_len) {
 	    ShowTooltip(prop.name_len, prop.name);
 	} else {
-	    ShowTooltip(strlen("No tooltip set!"), "No tooltip set!");
+	    ShowTooltip(sizeof("No tooltip set!") - 1, "No tooltip set!");
 	}
 
-	xcb_get_text_property_reply_wipe(&prop);
+	xcb_icccm_get_text_property_reply_wipe(&prop);
     } else {
-	ShowTooltip(strlen("Error tooltip"), "Error tooltip");
+	ShowTooltip(sizeof("Error tooltip") - 1, "Error tooltip");
     }
 }
 
@@ -1022,7 +1020,7 @@ static void WindowLeave(void)
 static void PropertyChanged(void)
 {
     if (TooltipShown) {
-	HideTooltip();
+	TooltipShown = 0;
 	WindowEnter();
     }
 }
@@ -1032,7 +1030,14 @@ static void PropertyChanged(void)
 */
 static void PrepareData(void)
 {
+    xcb_intern_atom_cookie_t cookies[2];
+    xcb_intern_atom_reply_t * reply;
     xcb_pixmap_t shape;
+
+    cookies[0] = xcb_intern_atom_unchecked(Connection, 0,
+    	sizeof("COMMAND") - 1 , "COMMAND");
+    cookies[1] = xcb_intern_atom_unchecked(Connection, 0,
+    	sizeof("TOOLTIP") - 1 , "TOOLTIP");
 
     Image = CreatePixmap((void *)wmdia_xpm, &shape);
     // Copy background part
@@ -1048,8 +1053,15 @@ static void PrepareData(void)
     //
     //	Prepare atoms for our properties
     //
-    CommandAtom = xcb_atom_get(Connection, "COMMAND");
-    TooltipAtom = xcb_atom_get(Connection, "TOOLTIP");
+    
+    if ((reply = xcb_intern_atom_reply(Connection, cookies[0], NULL))) {
+	CommandAtom = reply->atom;
+	free(reply);
+    }
+    if ((reply = xcb_intern_atom_reply(Connection, cookies[1], NULL))) {
+	TooltipAtom = reply->atom;
+	free(reply);
+    }
 }
 
 // ------------------------------------------------------------------------- //
@@ -1063,7 +1075,7 @@ static void PrintVersion(void)
 #ifdef GIT_REV
 	"(GIT-" GIT_REV ")"
 #endif
-	", (c) 2009, 2010 by Lutz Sammer\n"
+	", (c) 2009 - 2011 by Lutz Sammer\n"
 	"\tLicense AGPLv3: GNU Affero General Public License version 3\n");
 }
 

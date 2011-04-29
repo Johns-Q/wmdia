@@ -1,7 +1,7 @@
 #
 #	@file Makefile		@brief	DIA Dockapp
 #
-#	Copyright (c) 2009, 2010 by Lutz Sammer.  All Rights Reserved.
+#	Copyright (c) 2009 - 2011 by Lutz Sammer.  All Rights Reserved.
 #
 #	Contributor(s):
 #
@@ -20,7 +20,7 @@
 #	$Id$
 #----------------------------------------------------------------------------
 
-VERSION	=	"1.03"
+VERSION	=	"1.04"
 GIT_REV =	$(shell git describe --always 2>/dev/null)
 
 CC=	gcc
@@ -63,8 +63,8 @@ clobber:	clean
 	-rm -rf wmdia www/html
 
 dist:
-	tar cjCf .. www/wmdia-`date +%F-%H`.tar.bz2 \
-		$(addprefix wmdia/, $(FILES) $(HDRS) $(OBJS:.o=.c))
+	tar cjf wmc2d-`date +%F-%H`.tar.bz2 --transform 's,^,wmdia/,' \
+		$(FILES) $(OBJS:.o=.c)
 
 install:	all
 	strip --strip-unneeded -R .comment wmdia

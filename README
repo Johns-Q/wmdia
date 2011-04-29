@@ -1,6 +1,6 @@
 @file README		@brief	DIA Dockapp.
 
-Copyright (c) 2009, 2010 by Lutz Sammer.  All Rights Reserved.
+Copyright (c) 2009 - 2011 by Lutz Sammer.  All Rights Reserved.
 
 Contributor(s):
 
@@ -41,9 +41,17 @@ Use wmdia -h to see the command-line options.
 
 Requires:
 
-	x11-libs/libxcb and x11-libs/xcb-util
+	x11-libs/libxcb
 		X C-language Bindings library
 		http://xcb.freedesktop.org/
+	x11-libs/xcb-util
+		X C-language Bindings sample implementations
+		http://xcb.freedesktop.org/
+		Note: we are not compatible with versions before 0.3.8
+	x11-libs/xcb-util-wm
+		X C-language Bindings sample implementations
+		http://xcb.freedesktop.org/
+		Note: we are not compatible with versions before 0.3.8
 	
 	misc-fixed-medium (media-fonts/font-misc-misc)
 		Fixed size font for tooltip
