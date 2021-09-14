@@ -1,7 +1,7 @@
 ///
 ///	@file wmdia.c		@brief	DIA Dockapp
 ///
-///	Copyright (c) 2009 - 2011 by Lutz Sammer.  All Rights Reserved.
+///	Copyright (c) 2009 - 2011,2021 by Lutz Sammer.  All Rights Reserved.
 ///
 ///	Contributor(s):
 ///
@@ -506,9 +506,9 @@ static int Init(int argc, char *const argv[])
     xcb_icccm_set_wm_normal_hints(connection, window, &size_hints);
 
     i = strlen(Name);
-    buf = alloca(i * 2 + 2);
+    buf = alloca(i + sizeof("wmdia") + 2);
     strncpy(buf, Name, i + 1);
-    strncpy(buf + i + 1, "wmdia", sizeof("wmdia"));
+    strcpy(buf + i + 1, "wmdia");
     xcb_icccm_set_wm_class(connection, window, i + 1 + sizeof("wmdia"), buf);
 
     xcb_icccm_set_wm_name(connection, window, XCB_ATOM_STRING, 8, i, Name);

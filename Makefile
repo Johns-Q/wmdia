@@ -1,7 +1,7 @@
 #
 #	@file Makefile		@brief	DIA Dockapp
 #
-#	Copyright (c) 2009 - 2011 by Lutz Sammer.  All Rights Reserved.
+#	Copyright (c) 2009 - 2011, 2021 by Lutz Sammer.  All Rights Reserved.
 #
 #	Contributor(s):
 #
@@ -20,7 +20,7 @@
 #	$Id$
 #----------------------------------------------------------------------------
 
-VERSION	=	"1.04"
+VERSION	=	"1.05"
 GIT_REV =	$(shell git describe --always 2>/dev/null)
 
 CC=	gcc
