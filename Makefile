@@ -32,8 +32,8 @@ LIBS=	$(STATIC) `pkg-config --libs $(STATIC) \
 	xcb-icccm xcb-shape xcb-image xcb-aux xcb` -lpthread
 
 OBJS=	wmdia.o
-FILES=	Makefile README Changelog AGPL-3.0.txt wmdia.doxyfile wmdia.xpm \
-	wmdia.1 \
+FILES=	Makefile README Changelog AGPL-v3.0.md LICENSE.md wmdia.doxyfile \
+	wmdia.xpm wmdia.1 \
 	diashow.sh playvideo.sh set-command.sh set-tooltip.sh showpicture.sh
 
 all:	wmdia
